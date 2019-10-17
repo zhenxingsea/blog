@@ -1,0 +1,173 @@
+<!DOCTYPE HTML>
+<html>
+    <title>ZX`s Blog</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <script src="./js/showdown.min.js"></script>
+    <script src="./js/qrcode.min.js"></script>
+    <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+    <style>
+    .img_but {
+        position:absolute;
+        left:0;
+        top:0;
+        width: 50px;
+        height: 50px;
+        background: #000000;
+        z-index: 9999;
+        opacity: 0.5;
+    }
+    .show_view {
+        position:absolute;
+        left:0;
+        top:50;
+        z-index:1; 
+        width:100%;
+        height:100%;
+    }
+    .qrcode {
+        background-color: #000000;
+        border-radius: 20px;
+        width: 250px;
+        height: 250px;
+        margin: auto;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+    </style>
+<body>
+    <div id="qrcode", class="qrcode"></div>
+    <img id="Previous" class="img_but" src="./img/Previous.png"/>
+    <img id="Next" class="img_but" src="./img/Next.png"/>
+    <img id="Share" class="img_but" src="./img/Share.png"/>
+    <div id="show_view" class="show_view"></div>
+    <script>
+        function setDivPrevious(divName){
+            var scrollTop = $(document).scrollTop();   
+            var scrollLeft = $(document).scrollLeft();
+            $(divName).css( { position : 'absolute', 'top' : scrollTop, 'left' : scrollLeft + $(window).width() - $(divName).width()} );  
+        }
+        function setDivNext(divName){
+            var scrollTop = $(document).scrollTop();   
+            var scrollLeft = $(document).scrollLeft();   
+            $(divName).css( { position : 'absolute', 'top' : scrollTop + $(divName).height() + 10, 'left' : scrollLeft  + $(window).width() - $(divName).width()}); 
+        }
+        function setDivShare(divName){
+            var scrollTop = $(document).scrollTop();   
+            var scrollLeft = $(document).scrollLeft();
+            $(divName).css( { position : 'absolute', 'top' : scrollTop, 'left' : scrollLeft - (2 * $(divName).width()) - 10 + $(window).width()} ); 
+        } 
+        $(document).ready(function(){
+            // 上下页按钮
+            setDivPrevious("#Previous");
+            setDivNext("#Next");
+            setDivShare("#Share");
+
+            var loading_html = '<iframe src="./loading.html" width="100%" height="100%" frameborder=0 marginheight=0 marginwidth=0 scrolling="no"/>';
+            $("#show_view").html(loading_html);
+            md_data = $.ajax({url:"/md.do", async:false});
+            md_list = JSON.parse(md_data.responseText);
+            var current_index = md_list.length - 1;
+            if(current_index >= 0) {
+                // 初始化
+                $("#qrcode").html("");
+                $("#qrcode").hide();
+                var md_path = "/md" + md_list[current_index];
+                if(window.location.search){
+                    md_path = window.location.search.split("&")[0].split("=")[1];
+                    new QRCode(document.getElementById("qrcode"), window.location.href);
+                }else{
+                    var qr_str = window.location.protocol + "//" 
+                    + window.location.hostname + window.location.pathname 
+                    + "?md=" + md_path;
+                    new QRCode(document.getElementById("qrcode"), qr_str);
+                }
+                htmlobj = $.ajax({url:md_path, async:false});
+                var converter = new showdown.Converter();
+                html = converter.makeHtml(htmlobj.responseText);
+                $("#show_view").html(html);
+
+                // 下一页
+                $("#Next").click(function(){
+                    current_index++;
+                    if(current_index >= md_list.length){
+                        current_index = 0;
+                    }
+                    var md_path = "/md" + md_list[current_index];
+                    $.ajax({
+                        url : md_path, 
+                        success : function(data){
+                            var converter = new showdown.Converter();
+                            html = converter.makeHtml(data);
+                            $("#show_view").html(html);
+                            $("#qrcode").html("");
+                            var qr_str = window.location.protocol + "//" 
+                            + window.location.hostname + window.location.pathname 
+                            + "?md=" + md_path;
+                            new QRCode(document.getElementById("qrcode"), qr_str);
+                        },
+                        fail:function(){
+                            alert("Resource does not exist!");
+                        },
+                        beforeSend: function () {
+                            $("#show_view").html(html);
+                        }
+                    
+                    });
+                });
+
+                // 上一页
+                $("#Previous").click(function(){
+                    current_index--;
+                    if(current_index < 0){
+                        current_index = md_list.length - 1;
+                    }
+                    var md_path = "/md" + md_list[current_index];
+                    $.ajax({
+                        url : md_path, 
+                        success : function(data){
+                            var converter = new showdown.Converter();
+                            html = converter.makeHtml(data);
+                            $("#show_view").html(html);
+                            $("#qrcode").html("");
+                            var qr_str = window.location.protocol + "//" 
+                            + window.location.hostname + window.location.pathname 
+                            + "?md=" + md_path;
+                            new QRCode(document.getElementById("qrcode"), qr_str);
+                        },
+                        fail:function(){
+                            alert("Resource does not exist!");
+                        }
+                    });
+                });
+
+                // 分享
+                $("#Share").on({
+                    mouseover : function(){
+                        $("#qrcode").show();
+                    } ,
+                    mouseout : function(){
+                        $("#qrcode").hide();
+                    } 
+                });
+
+                // 滚动条
+                $(document).scroll(function() {
+                    setDivPrevious("#Previous");
+                    setDivNext("#Next");
+                    setDivShare("#Share");
+                });
+
+                $(window).resize(function() { 
+                    setDivPrevious("#Previous");
+                    setDivNext("#Next");
+                    setDivShare("#Share");
+                });
+            }
+            
+        });
+    </script>
+</body>
+</html>
